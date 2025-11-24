@@ -1,4 +1,3 @@
-
  <template>
  <div class="chat-container">
       <!-- 连接状态指示器 -->
@@ -14,13 +13,45 @@
         </el-alert>
       </div>
 
-      <!-- 在线用户数 -->
-      <div class="online-count">
-        <el-badge :value="onlineUsers.length" type="success">
-          <el-icon><User /></el-icon>
-        </el-badge>
-        <span>{{ onlineUsers.length }} 人在线</span>
-      </div>
+      <!-- 顶部操作栏 -->
+      <div class="chat-header">
+        <!-- 在线用户数 -->
+        <div class="online-count">
+          <el-badge :value="onlineUsers.length" type="success">
+            <el-icon><User /></el-icon>
+          </el-badge>
+          <span>{{ onlineUsers.length }} 人在线</span>
+        </div>
+
+        <!-- 用户菜单 -->
+        <div class="user-menu">
+          <el-dropdown @command="handleUserCommand" trigger="click">
+            <span class="user-trigger">
+              <el-avatar 
+                :size="32" 
+                :src="userStore.user?.avatar_url" 
+                class="user-avatar"
+              >
+                {{ userStore.user?.nickname?.charAt(0) || userStore.user?.username?.charAt(0) || 'U' }}
+              </el-avatar>
+              <span class="username">{{ userStore.user?.nickname || userStore.user?.username }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon>
+                  个人资料
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" divided>
+                  <el-icon><SwitchButton /></el-icon>
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </div> 
 
       <!-- 聊天组件 -->
       <vue-advanced-chat
@@ -45,33 +76,29 @@
         @open-file="handleOpenFile"
         @textarea-action-handler="openStickerPicker" 
       >
+
       <!-- Sticker 按钮 -->
       <template #custom-action-icon>
           <!-- <StickerPicker @select-sticker="handleSelectGif" -->
         <div style="font-size: 20px;" title="发送贴纸">STICKER</div>
       </template>
+    </vue-advanced-chat>
 
-      </vue-advanced-chat>
-
-       <!-- Sticker 选择器弹窗 -->
+      <!-- Sticker 选择器弹窗 -->
       <el-dialog v-model="showStickerDialog" width="450px" title="选择贴纸">
         <GiphyPicker @select-gif="handleSelectGif" />
       </el-dialog>
-      
     </div>
   </template>
 
   <script setup>
-  import GiphyPicker from '@/components/GiphyPicker.vue'  // 导入 GiphyPicker
-  import { ref } from 'vue'  // 如果还没导入
-  import StickerPicker from '@/components/StickerPicker.vue'  
+  import GiphyPicker from '@/components/GiphyPicker.vue'; // 导入 GiphyPicker
   // import { Picture } from '@element-plus/icons-vue'
-  // import GiphyPicker from '@/components/GiphyPicker.vue'
   // import axios from 'axios';
-  import { ElMessage } from 'element-plus';
-  import { onMounted, onUnmounted } from 'vue';
+  import { ref, onMounted, onUnmounted } from 'vue';
   import { useRouter } from 'vue-router';
-  import { User } from '@element-plus/icons-vue';
+  import { ElMessage, ElMessageBox } from 'element-plus';
+  import { User, ArrowDown, SwitchButton } from '@element-plus/icons-vue';
   import { useSocket } from '@/composables/useSocket';
   import { useChatStore } from '@/stores/chat';
   import { useUserStore } from '@/stores/user';
@@ -106,6 +133,34 @@
     deleteMessage,
     disconnect
   } = useSocket();
+  
+  // 用户菜单命令处理
+  const handleUserCommand = async (command) => {
+    switch (command) {
+      case 'profile':
+        // 跳转到个人资料页
+        router.push('/profile');
+        break;
+      case 'logout':
+        // 退出登录
+        try {
+          await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          });
+          
+          userStore.logout();
+          disconnect();
+          router.push('/login');
+          ElMessage.success('已退出登录');
+        } catch (error) {
+          // 用户取消退出
+          console.log('取消退出登录');
+        }
+        break;
+    }
+  };
 
   // 组件挂载时初始化
   onMounted(async () => {
@@ -362,8 +417,9 @@
       ElMessage.error('发送消息失败');
     }};
 
-            // 处理选择 GIF Sticker
-      const handleSelectGif = async (gif) => {
+    
+    // 处理选择 GIF Sticker
+    const handleSelectGif = async (gif) => {
     try {
       const messageData = {
         roomId: chatStore.currentRoom.roomId || '1',
@@ -536,5 +592,28 @@
 
   :deep(.vac-svg-button:hover::before) {
     transform: scale(1.2);
+  }
+
+  /* 响应式设计 */
+  @media (max-width: 768px) {
+    .chat-header {
+      padding: 0 10px;
+    }
+    
+    .username {
+      display: none;
+    }
+    
+    .user-trigger {
+      padding: 6px;
+    }
+    
+    .online-count span {
+      display: none;
+    }
+    
+    .online-count {
+      padding: 8px;
+    }
   }
   </style>

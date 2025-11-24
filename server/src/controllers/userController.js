@@ -8,7 +8,7 @@ import OnlineUser from '../models/OnLineUser.js';
   export async function getProfile(req, res) {
     try {
       const user = await User.findById(req.user.id);
-
+      
       if (!user) {
         return res.status(404).json({
           success: false,

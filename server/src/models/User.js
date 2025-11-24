@@ -65,13 +65,13 @@ import db from '../config/database.js';
     /**
      * 更新用户信息
      */
-    static async update(id, updates) {
+    static async update(id, updateData) {
       const allowedFields = ['nickname', 'age', 'bio', 'avatar_url'];
       const fields = [];
       const values = [];
 
-      for (const [key, value] of Object.entries(updates)) {
-        if (allowedFields.includes(key)) {
+      for (const [key, value] of Object.entries(updateData)) {
+        if (allowedFields.includes(key) && updateData[key] !== undefined) {
           fields.push(`${key} = ?`);
           values.push(value);
         }
@@ -83,10 +83,21 @@ import db from '../config/database.js';
 
       values.push(id);
 
-      await db.query(
+      try {
+        const [result] = await db.query(
+          `UPDATE users SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          values
+        );
+        return result.affectedRows > 0;
+      } catch (error) {
+        console.error('更新用户信息时出错:', error);
+        throw error;
+      }
+
+      /* await db.query(
         `UPDATE users SET ${fields.join(', ')} WHERE id = ?`,
         values
-      );
+      ); */
     }
   }
 
