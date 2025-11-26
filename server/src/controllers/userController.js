@@ -36,16 +36,32 @@ import OnlineUser from '../models/OnLineUser.js';
    */
   export async function updateProfile(req, res) {
     try {
-      const { nickname, age, bio, avatar_url } = req.body;
+      // 从 req.body 中获取文本字段
+      const { nickname, age, bio } = req.body; // 移除 avatar_url，因为现在通过文件上传获取
       const userId = req.user.id;
 
       const updates = {};
       if (nickname !== undefined) updates.nickname = nickname;
       if (age !== undefined) updates.age = age;
       if (bio !== undefined) updates.bio = bio;
-      if (avatar_url !== undefined) updates.avatar_url = avatar_url;
 
+      // 检查是否有上传的文件（通过 multer 中间件处理）
+      if (req.file) {
+        // 生成文件访问URL - 使用你现有的 BASE_URL 配置
+        const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+        updates.avatar_url = `${baseUrl}/uploads/avatars/${req.file.filename}`;
+      }
+
+      // 添加错误处理，检查是否成功更新
       await User.update(userId, updates);
+      const updated = await User.update(userId, updates);
+      if (!updated) {
+        return res.status(400).json({
+          success: false,
+          message: '更新失败'
+        });
+      }
+
       const updatedUser = await User.findById(userId);
 
       res.json({

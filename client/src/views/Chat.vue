@@ -117,7 +117,7 @@
 
   // 添加打开 Sticker 选择器的方法
   const openStickerPicker = () => {
-    console.log('� 打开 Sticker 选择器')
+    console.log('  打开 Sticker 选择器')
     showStickerDialog.value = true
   }
   // 使用 WebSocket Composable
@@ -166,9 +166,9 @@
   onMounted(async () => {
 
      // 添加调试信息
-    console.log('� 用户信息:', userStore.user);
-    console.log('� 用户 ID:', userStore.user?.id);
-    console.log('� Token:', userStore.token);
+    console.log('  用户信息:', userStore.user);
+    console.log('  用户 ID:', userStore.user?.id);
+    console.log('  Token:', userStore.token);
 
     // 检查登录状态
     if (!userStore.isLoggedIn) {
@@ -252,10 +252,10 @@
  watch(() => chatStore.messages, (newMessages) => {
     if (newMessages.length > 0) {
       const lastMsg = newMessages[newMessages.length - 1];
-      console.log('� 最新消息:', lastMsg);
-      console.log('� 消息的 senderId:', lastMsg.senderId, '类型:', typeof lastMsg.senderId);
-      console.log('� 当前用户 ID:', userStore.user?.id, '类型:', typeof userStore.user?.id);
-      console.log('� 是否相等?', lastMsg.senderId === userStore.user?.id?.toString());
+      console.log('  最新消息:', lastMsg);
+      console.log('  消息的 senderId:', lastMsg.senderId, '类型:', typeof lastMsg.senderId);
+      console.log('  当前用户 ID:', userStore.user?.id, '类型:', typeof userStore.user?.id);
+      console.log('  是否相等?', lastMsg.senderId === userStore.user?.id?.toString());
     }
   }, { deep: true });
   /**
@@ -302,25 +302,25 @@
   const uploadFile = async (file) => {
     try {
       // 打印文件对象的完整结构
-      console.log('� 上传文件对象:', file);
-      console.log('� 文件对象键:', Object.keys(file));
-      console.log('� file.blob:', file.blob);
-      console.log('� file.file:', file.file);
-      console.log('� file.name:', file.name);
-      console.log('� file.type:', file.type);
+      console.log('  上传文件对象:', file);
+      console.log('  文件对象键:', Object.keys(file));
+      console.log('  file.blob:', file.blob);
+      console.log('  file.file:', file.file);
+      console.log('  file.name:', file.name);
+      console.log('  file.type:', file.type);
 
       const formData = new FormData();
-      // � 修复：构造完整文件名（带扩展名）
+      //   修复：构造完整文件名（带扩展名）
       const fullFileName = file.extension
         ? `${file.name}.${file.extension}`  // 如果有扩展名，拼接
         : file.name;
       console.log('✅ 完整文件名:', fullFileName);
-       // � 创建带正确文件名的 File 对象
+       //   创建带正确文件名的 File 对象
       const fileToUpload = new File([file.blob], fullFileName, {
         type: file.type
       });
 
-      console.log('� 准备上传的 File 对象:', fileToUpload);
+      console.log('  准备上传的 File 对象:', fileToUpload);
 
       let uploadUrl = '/upload/file';
       let fieldName = 'file';
@@ -335,7 +335,7 @@
         fieldName = 'image';
       }
 
-      // � 上传 File 对象（带文件名）而不是直接上传 Blob
+      //   上传 File 对象（带文件名）而不是直接上传 Blob
       formData.append(fieldName, fileToUpload);
 
       // 使用 request 实例而不是 axios
@@ -348,7 +348,7 @@
       console.log('✅ 上传响应:', response);
 
       if (response.success) {
-        console.log('� 返回的文件 URL:', response.data.url);
+        console.log('  返回的文件 URL:', response.data.url);
         return response.data.url;
       } else {
         throw new Error(response.message || '上传失败');
@@ -367,7 +367,7 @@
       // 从 CustomEvent 的 detail[0] 中提取数据
       const { content, roomId, files, replyMessage } = eventData.detail[0];
 
-      console.log('� 发送消息:', { content, roomId, files, replyMessage });
+      console.log('  发送消息:', { content, roomId, files, replyMessage });
 
       // 验证内容
       if (!content && (!files || files.length === 0)) {
@@ -441,10 +441,10 @@
    * 处理添加 Emoji 到输入框
    */
   const handleAddEmoji = (emojiUnicode) => {
-    console.log('� Chat.vue 收到 emoji:', emojiUnicode)  // 添加这行
+    console.log('  Chat.vue 收到 emoji:', emojiUnicode)  // 添加这行
     // 获取输入框元素
     const textarea = document.querySelector('#roomTextarea')  
-    console.log('� 找到的输入框:', textarea)  // 添加这行    
+    console.log('  找到的输入框:', textarea)  // 添加这行    
 
     if (textarea) {
       // 在光标位置插入 emoji
@@ -509,7 +509,7 @@
     } else {
       sendTyping(roomId || '1', false);
     }
-  };  // � handleTyping 到这里结束
+  };  //   handleTyping 到这里结束
 
   /**
    * 发送 emoji 反应
@@ -522,7 +522,7 @@
     } catch (error) {
       ElMessage.error('操作失败');
     }
-  };  // � handleSendReaction 独立的函数
+  };  //   handleSendReaction 独立的函数
 
   /**
    * 打开/下载文件
@@ -533,7 +533,7 @@
     } else {
       ElMessage.warning('文件 URL 不可用');
     }
-  };  // � handleOpenFile 独立的函数
+  };  //   handleOpenFile 独立的函数
   </script>
 
   <style scoped>

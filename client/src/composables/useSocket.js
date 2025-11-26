@@ -2,7 +2,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
   import socketManager from '@/utils/socket';
   import { useChatStore } from '@/stores/chat';
   import { useUserStore } from '@/stores/user';
-  import { convertMessageToChatMessage, convertUserToRoomUser } from '@/utils/chatAdapter';
+  import { convertMessageToChatMessage, convertUserToRoomUser, formatMessageDate, formatMessageTime } from '@/utils/chatAdapter';
 
   /**
    * WebSocket Composable
@@ -29,6 +29,13 @@ import { onMounted, onUnmounted, ref } from 'vue';
 
       // 设置事件监听
       setupListeners();
+
+      // 同步实际连接状态到本地 ref
+      // 如果 socketManager 已经连接，直接更新本地状态
+      if (socketManager.isConnected()) {
+        isConnected.value = true;
+        console.log('✅ WebSocket 已连接，状态已同步');
+      }
     };
 
     /**
@@ -193,10 +200,24 @@ import { onMounted, onUnmounted, ref } from 'vue';
       // ============================================
 
       socketManager.on('system-message', (message) => {
-        console.log('� 系统消息:', message);
+        console.log('🔔 系统消息:', message);
+
+        // 获取最后一条消息的日期
+        const lastMessage = chatStore.messages[chatStore.messages.length - 1];
+        const messageDate = new Date(message.timestamp || new Date());
+
+        // 格式化系统消息，补充缺失的字段
+        const formattedMessage = {
+          ...message,
+          // 如果最后一条消息是今天的，使用相同的 date，避免重复显示日期分隔符
+          date: lastMessage && lastMessage.date === formatMessageDate(messageDate)
+            ? lastMessage.date
+            : formatMessageDate(messageDate),
+          timestamp: formatMessageTime(messageDate)
+        };
 
         // 添加系统消息
-        chatStore.addMessage(message);
+        chatStore.addMessage(formattedMessage);
       });
 
       // ============================================

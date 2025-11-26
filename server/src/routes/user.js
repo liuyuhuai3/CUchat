@@ -6,6 +6,7 @@ import {
     getOnlineUsers,
     getRoomUsers
   } from '../controllers/userController.js';
+import uploadAvatar from '../middlewares/uploadAvatar.js';
 
   const router = express.Router();
 
@@ -18,7 +19,7 @@ import {
 
   // 更新用户个人资料
   // PUT /api/users/profile
-  router.put('/profile', updateProfile);
+  router.put('/profile', uploadAvatar.single('avatar'), updateProfile);
 
   // 获取在线用户列表
   // GET /api/users/online

@@ -9,29 +9,62 @@
       </template>
 
       <div class="profile-content">
+        <!-- 错误边界 -->
+        <div v-if="hasError" class="error-boundary">
+          <el-alert
+            title="页面加载失败"
+            type="error"
+            description="个人资料页面加载时出现错误，请刷新页面重试"
+            show-icon
+            :closable="false"
+          />
+        </div>
+
+        <!-- 调试信息 -->
+        <!--
+        <div class="debug-info" v-if="isDevelopment">
+          <el-alert
+            title="调试信息"
+            type="info"
+            :description="`用户ID: ${user.id}, 用户名: ${user.username}`"
+            show-icon
+            :closable="true"
+          />
+        </div>
+        -->
+        
+
         <!-- 头像区域 -->
         <div class="avatar-section">
-          <div class="avatar-upload" @click="triggerAvatarUpload">
-            <el-avatar 
-              :size="120" 
-              :src="user.avatar_url" 
-              fit="cover"
-              class="avatar"
-            >
-              {{ displayName?.charAt(0)?.toUpperCase() || 'U' }}
-            </el-avatar>
-            <div class="avatar-overlay">
-              <el-icon><Camera /></el-icon>
-              <span>更换头像</span>
-            </div>
+          <!-- 在头像区域内部添加上传进度显示 -->
+          <div v-if="uploading" class="upload-progress">
+            <el-progress :percentage="uploadProgress" :show-text="false" />
+            <p>上传中... {{ uploadProgress }}%</p>
           </div>
-          <input 
-            ref="avatarInput"
-            type="file" 
-            accept="image/jpeg,image/png,image/gif"
-            @change="handleAvatarUpload"
-            style="display: none;"
-          />
+
+          <div class="avatar-container">
+            <div class="avatar-upload" @click="triggerAvatarUpload">
+              <el-avatar 
+                :size="120" 
+                :src="user.avatar_url" 
+                fit="cover"
+                class="avatar"
+              >
+                {{ displayName?.charAt(0)?.toUpperCase() || 'U' }}
+              </el-avatar>
+              <div class="avatar-overlay">
+                <el-icon><Camera /></el-icon>
+                <span>更换头像</span>
+              </div>
+            </div>
+            <input 
+              ref="avatarInput"
+              type="file" 
+              accept="image/jpeg,image/png,image/gif"
+              @change="handleAvatarUpload"
+              style="display: none;"
+            />
+          </div>
           <p class="upload-tip">支持 JPG、PNG 格式，大小不超过 5MB</p>
         </div>
 
@@ -154,6 +187,13 @@ const avatarInput = ref(null);
 const loading = ref(false);
 const loadingUserData = ref(true);
 
+// 新增的状态变量
+const hasError = ref(false);
+const isDevelopment = ref(import.meta.env.MODE === 'development');
+const uploading = ref(false);
+const uploadProgress = ref(0);
+const newAvatarFile = ref(null);
+
 // 用户数据
 const user = reactive({
   id: null,
@@ -176,14 +216,20 @@ const formData = reactive({
 
 // 计算属性
 const displayName = computed(() => {
-  console.log('displayName computed:', formData.nickname, user.username);
+  // console.log('displayName computed:', formData.nickname, user.username);
   return formData.nickname || user.username;
 });
 
 const hasChanges = computed(() => {
   return formData.nickname !== user.nickname ||
          formData.age !== user.age ||
-         formData.bio !== user.bio;
+         formData.bio !== user.bio ||
+         !!newAvatarFile.value;
+});
+
+// 添加：hasNewAvatar 计算属性
+const hasNewAvatar = computed(() => {
+  return !!newAvatarFile.value;
 });
 
 // 在模板渲染前添加调试
@@ -208,12 +254,14 @@ const handleAvatarUpload = async (event) => {
     ElMessage.error('图片大小不能超过5MB');
     return;
   }
+  // 保存文件
+  newAvatarFile.value = file;
 
   // 创建本地预览
   const reader = new FileReader();
   reader.onload = (e) => {
     user.avatar_url = e.target.result;
-    ElMessage.success('头像已更新（演示功能）');
+    ElMessage.success('头像已选择，点击保存更改以上传');  // 提示信息
   };
   reader.readAsDataURL(file);
 
@@ -227,6 +275,18 @@ const resetForm = () => {
     age: user.age || null,
     bio: user.bio || ''
   });
+
+  // 清空新头像文件
+  newAvatarFile.value = null;
+  if (avatarInput.value) {
+    avatarInput.value.value = '';
+  }
+
+  // 添加：恢复原始头像
+  if (user.original_avatar_url) {
+    user.avatar_url = user.original_avatar_url;
+  }
+
 };
 
 // 提交表单
@@ -235,23 +295,54 @@ const handleSubmit = async () => {
 
   try {
     loading.value = true;
+    uploading.value = true;
+    uploadProgress.value = 0;
     
-    const updateData = {};
-    if (formData.nickname !== user.nickname) updateData.nickname = formData.nickname;
-    if (formData.age !== user.age) updateData.age = formData.age;
-    if (formData.bio !== user.bio) updateData.bio = formData.bio;
+    // 创建 FormData 对象
+    const formDataToSend = new FormData();
 
-    console.log('发送更新请求:', updateData);
+    // 添加文本字段
+    if (formData.nickname !== user.nickname) {
+      formDataToSend.append('nickname', formData.nickname);
+    }
+    if (formData.age !== user.age) {
+      formDataToSend.append('age', formData.age);
+    }
+    if (formData.bio !== user.bio) {
+      formDataToSend.append('bio', formData.bio);
+    }
+
+    // 添加头像文件
+    if (newAvatarFile.value) {
+      formDataToSend.append('avatar', newAvatarFile.value);
+    }
+
+    // 模拟上传进度
+    const progressInterval = setInterval(() => {
+      if (uploadProgress.value < 90) {
+        uploadProgress.value += 10;
+      }
+    }, 200);
     
-    const response = await updateProfile(updateData);
+    const response = await updateProfile(formDataToSend);
     
     console.log('更新响应:', response);
+
+    clearInterval(progressInterval);
+    uploadProgress.value = 100;
     
-    // 注意：由于 request 直接返回 data，这里直接使用 response.success
+    // 由于 request 直接返回 data，这里直接使用 response.success
     if (response.success) {
       // 更新本地数据
       Object.assign(user, response.user);
       userStore.updateUserInfo(response.user);
+
+      // 清空新头像文件
+      newAvatarFile.value = null;
+      if (avatarInput.value) {
+        avatarInput.value.value = '';
+      }
+
       ElMessage.success('个人资料更新成功！');
     } else {
       ElMessage.error(response.message || '更新失败');
@@ -261,6 +352,8 @@ const handleSubmit = async () => {
     ElMessage.error('更新失败，请重试: ' + (error.response?.data?.message || error.message));
   } finally {
     loading.value = false;
+    uploading.value = false;
+    uploadProgress.value = 0;
   }
 };
 
@@ -289,7 +382,7 @@ const loadUserData = async () => {
     const response = await getProfile();
     console.log('用户资料响应:', response);
     
-    // 注意：由于 request 直接返回 data，这里直接使用 response.success
+    // 由于 request 直接返回 data，这里直接使用 response.success
     if (response.success) {
       const userData = response.user;
       console.log('用户数据:', userData);
@@ -310,8 +403,18 @@ const loadUserData = async () => {
   }
 };
 
+// 错误处理函数
+const handleError = (error) => {
+  console.error('Profile.vue 错误:', error);
+  hasError.value = true;
+};
+
 onMounted(() => {
-  loadUserData();
+  try {
+    loadUserData();
+  } catch (error) {
+    handleError(error);
+  }
 });
 </script>
 
@@ -383,46 +486,28 @@ onMounted(() => {
 
 .avatar-section {
   text-align: center;
-  padding: 30px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  width: 100%;
+  margin-bottom: 30px;
 }
 
-.avatar-wrapper {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  overflow: hidden;
+.avatar-container {
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+/* 头像上传区域样式 */
+.avatar-upload {
   position: relative;
-  margin: 0 auto 16px;
-  border: 4px solid #e4e7ed;
+  display: inline-block;
   cursor: pointer;
-  transition: all 0.3s;
+  border-radius: 50%;
+  width: 120px; /* 与头像大小一致 */
+  height: 120px; /* 与头像大小一致 */
+  overflow: hidden; /* 确保圆形边界 */
 }
 
-.avatar-wrapper:hover {
-  border-color: #409eff;
-  transform: scale(1.05);
-}
-
-.avatar-image {
+.avatar {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-}
-
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36px;
-  font-weight: bold;
 }
 
 .avatar-overlay {
@@ -434,6 +519,7 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.6);
   color: white;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   opacity: 0;
@@ -442,6 +528,15 @@ onMounted(() => {
 
 .avatar-wrapper:hover .avatar-overlay {
   opacity: 1;
+}
+
+.avatar-overlay .el-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.avatar-overlay span {
+  font-size: 12px;
 }
 
 .avatar-tip {
@@ -458,7 +553,7 @@ onMounted(() => {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* 表单项目保持默认的左右分布，但内容左对齐 */
+/* 表单项目保持默认的左右分布，内容左对齐 */
 :deep(.el-form-item) {
   margin-bottom: 24px;
 }
@@ -544,6 +639,24 @@ onMounted(() => {
   min-width: 100px;
 }
 
+/* 上传进度样式 */
+.upload-tip {
+  margin: 0;
+  color: #909399;
+  font-size: 12px;
+}
+
+.upload-progress {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.upload-progress p {
+  margin: 5px 0 0 0;
+  font-size: 12px;
+  color: #409eff;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .profile-container {
@@ -551,10 +664,6 @@ onMounted(() => {
   }
   
   .profile-form {
-    padding: 20px;
-  }
-  
-  .avatar-section {
     padding: 20px;
   }
   

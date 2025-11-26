@@ -29,7 +29,7 @@
   });
 
   // 中间件
- // CORS 配置（必须在 helmet 之前）
+  // CORS 配置（必须在 helmet 之前）
   app.use(cors({
     origin: 'http://localhost:5173',
     credentials: true,
@@ -42,9 +42,9 @@
     crossOriginResourcePolicy: { policy: "cross-origin" }
   }));
 
-  app.use(morgan('dev'));
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(morgan('dev'));  // 日志
+  app.use(express.json());  // 解析 JSON
+  app.use(express.urlencoded({ extended: true }));  // 解析 URL 编码
 
   // 静态文件服务（添加 CORS 头）
   app.use('/uploads', (req, res, next) => {
@@ -53,9 +53,6 @@
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     next();
   }, express.static('uploads'));
-  app.use(morgan('dev'));  // 日志
-  app.use(express.json());  // 解析 JSON
-  app.use(express.urlencoded({ extended: true }));  // 解析 URL 编码
   
 
   // 测试路由
