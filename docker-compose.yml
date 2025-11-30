@@ -7,9 +7,12 @@ services:
     image: mysql:8.0
     container_name: cuchat-mysql
     restart: always
+
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: 229345329Lxn.
-      MYSQL_DATABASE: chat_app
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_CHARACTER_SET_SERVER: utf8mb4
       MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
     volumes:
