@@ -1,9 +1,15 @@
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
+import { io } from 'socket.io-client';
+
+const socket = io('/', {  // 改为根路径，由 nginx 代理
+  path: '/socket.io/',
+  transports: ['websocket', 'polling']
+})
 
   // 创建 axios 实例
   const request = axios.create({
-    baseURL: 'http://localhost:3000/api',  // 后端 API 地址
+    baseURL: '/api',  // 后端 API 地址,nginx代理
     timeout: 10000,  // 请求超时时间
     headers: {
       'Content-Type': 'application/json'
