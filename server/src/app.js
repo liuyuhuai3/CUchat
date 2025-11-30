@@ -1,4 +1,6 @@
   import express from 'express';
+  import session from 'express-session';
+  import passport from 'passport';
   import http from 'http';
   import { Server } from 'socket.io';
   import cors from 'cors';
@@ -6,8 +8,11 @@
   import morgan from 'morgan';
   import dotenv from 'dotenv';
   import db from './config/database.js';
-  import uploadRoutes from './routes/upload.js';      // 新增
-  import emojiRoutes from './routes/emoji.js';        // 新增
+  import './config/passport.js';
+  import uploadRoutes from './routes/upload.js';
+  import emojiRoutes from './routes/emoji.js';
+  import { generateToken } from './utils/jwt.js';
+  import Session from './models/Session.js';
 
   // 路由导入
   import authRoutes from './routes/auth.js';
@@ -29,6 +34,18 @@
   });
 
   // 中间件
+  // Session 配置（在路由和其他中间件之前）
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-chatroom-session-secret', // 建议使用环境变量
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false } // 开发环境设为false，生产环境根据HTTPS设置
+  }));
+
+  // 初始化Passport
+  app.use(passport.initialize());
+  app.use(passport.session());
+
   // CORS 配置（必须在 helmet 之前）
   app.use(cors({
     origin: 'http://localhost:5173',
@@ -89,8 +106,80 @@
   app.use('/api/auth', authRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/messages', messageRoutes);
-  app.use('/api/upload', uploadRoutes);       // 新增
-  app.use('/api/emojis', emojiRoutes);        // 新增：包含 /api/emojis 和 /api/emojis/stickers
+  app.use('/api/upload', uploadRoutes);
+  app.use('/api/emojis', emojiRoutes);
+
+  app.get('/api/auth/google',
+    passport.authenticate('google', { scope: ['profile', 'email'] })
+  );
+
+  // Google OAuth 路由 - 详细日志
+  app.get('/api/auth/google',
+    (req, res, next) => {
+      console.log('🚀 开始 Google OAuth 认证流程');
+      console.log('📝 回调 URL:', '/auth/google/callback');
+      next();
+    },
+    passport.authenticate('google', { 
+      scope: ['profile', 'email'] 
+    })
+  );
+
+  // Google OAuth2 回调路由 - 详细日志和错误处理
+  app.get('/api/auth/google/callback',
+    (req, res, next) => {
+      console.log('🔄 收到 Google 回调');
+      console.log('📋 查询参数:', req.query);
+      next();
+    },
+    passport.authenticate('google', { 
+      failureRedirect: process.env.FRONTEND_URL + '/login?error=auth_failed',
+      failureMessage: true
+    }),
+    async (req, res) => {
+      try {
+        console.log('✅ Google OAuth 认证成功');
+        console.log('👤 用户信息:', req.user);
+
+        // 生成 JWT token
+        const token = generateToken({ userId: req.user.id });
+
+        // 创建会话并存储在数据库中
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7) // 7天后过期
+
+        await Session.create(req.user.id, token, expiresAt);
+        console.log('🔑 JWT Token 已生成:', token.substring(0,20) + '...');
+      
+        // 重定向到前端，并携带token
+        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+        res.redirect(`${frontendURL}/login?auth=success&token=${encodeURIComponent(token)}`);
+    } catch (error) {
+        console.error('❌ 处理 Google OAuth 回调时出错:', error);
+        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+        res.redirect('${frontendURL}/login?error=token_generation_failed');
+      }
+    }
+  );
+
+  // 添加认证状态检查路由（用于调试）
+  app.get('/auth/status', (req, res) => {
+    console.log('🔍 检查认证状态，用户:', req.user);
+    res.json({ 
+      authenticated: !!req.user,
+      user: req.user || null
+    });
+  });
+
+  // 登出路由
+  app.get('/logout', (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return next(err);
+      }
+      res.redirect('/');
+    });
+  });
 
   // WebSocket 初始化
   setupWebSocket(io);

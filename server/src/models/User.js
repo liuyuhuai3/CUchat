@@ -47,12 +47,46 @@ import db from '../config/database.js';
      */
     static async findById(id) {
       const [rows] = await db.query(
-        `SELECT id, username, email, nickname, age, bio, avatar_url, 
-                status, created_at, updated_at 
-         FROM users WHERE id = ?`,
+        `SELECT id, username, email, nickname, age, bio, avatar_url, status, created_at, updated_at FROM users WHERE id = ?`,
         [id]
       );
       return rows[0] || null;
+    }
+    
+    /**
+     * 通过 Google ID查找用户
+     */
+    static async findByGoogleId(googleId) {
+      const [rows] = await db.query(
+        `SELECT * FROM users WHERE google_id = ?`,
+        [googleId]
+      );
+      return rows[0] || null;
+    }
+
+    /**
+     * 从Google账户创建新用户
+     */
+    static async createFromGoogle({ googleId, email, displayName, avatarUrl }) {
+      // 从email生成username（取@前面的部分）
+      const username = email.split('@')[0] + '_' + Date.now();
+      const [result] = await db.query(
+        `INSERT INTO users (username, email, google_id, nickname, avatar_url, status)
+         VALUES (?, ?, ?, ?, ?, 1)`,
+        [username, email, googleId, displayName || username, avatarUrl]
+      );
+      return result.insertId;
+    }
+    
+    /**
+     * 将Google账号链接到现有用户
+     */
+    static async linkGoogleAccount(userId, googleId) {
+      const [result] = await db.query(
+        `UPDATE users SET google_id = ? WHERE id = ?`,
+        [googleId, userId]
+      );
+      return result.affectedRows > 0;
     }
 
     /**
