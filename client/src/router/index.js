@@ -2,10 +2,19 @@
  import { useUserStore } from '@/stores/user';
 
   const routes = [
+    /* 
     {
       path: '/',
       redirect: '/login'  // 默认跳转到登录页
     },
+    */
+    
+    {
+      path: '/',
+      name: 'Landing',
+      component: () => import('../views/Landing.vue')  // 指向 Landing 页面     
+    },
+
     {
       path: '/login',
       name: 'Login',
@@ -14,7 +23,7 @@
     {
       path: '/register',
       name: 'Register',
-      component: () => import('../views/Register.vue')
+      redirect: '/login'
     },
     {
       path: '/chat',

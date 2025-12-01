@@ -157,7 +157,7 @@
     } catch (error) {
         console.error('❌ 处理 Google OAuth 回调时出错:', error);
         const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
-        res.redirect('${frontendURL}/login?error=token_generation_failed');
+        res.redirect(`${frontendURL}/login?error=token_generation_failed`);
       }
     }
   );

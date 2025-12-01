@@ -7,8 +7,8 @@
       vue({
         template: {
           compilerOptions: {
-            // 只标记 emoji-picker 为自定义元素，不要标记vue-advanced-chat
-            isCustomElement: (tag) => tag === 'emoji-picker'
+            // 只标记 emoji-picker-element 为自定义元素，不要标记vue-advanced-chat
+            isCustomElement: (tag) => tag === 'emoji-picker-element'
           }
         }
       })

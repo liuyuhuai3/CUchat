@@ -2,12 +2,17 @@
   import { createPinia } from 'pinia';
   import App from './App.vue';
   import router from './router';
-  import * as ElementPlusIconsVue from '@element-plus/icons-vue'; 
+  import * as ElementPlusIconsVue from '@element-plus/icons-vue';
+
+  import './assets/tailwind.css';
 
   import ElementPlus from 'element-plus';
   import 'element-plus/dist/index.css';
   import 'vue-advanced-chat';
   import 'emoji-picker-element'
+
+  // 导入 VueUse Motion
+  import { MotionPlugin } from '@vueuse/motion'
 
   // 导入并注册 vue-advanced-chat
   import { register } from 'vue-advanced-chat';
@@ -23,5 +28,6 @@
   app.use(pinia);
   app.use(router);
   app.use(ElementPlus);
+  app.use(MotionPlugin); // 使用 VueUse Motion 插件
 
   app.mount('#app');

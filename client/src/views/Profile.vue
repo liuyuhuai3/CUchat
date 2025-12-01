@@ -1,193 +1,370 @@
 <template>
-  <div class="profile-page">
-    <el-card class="profile-card">
-      <template #header>
-        <div class="card-header">
-          <h2>个人资料</h2>
-          <p class="subtitle">管理您的账户信息</p>
-        </div>
-      </template>
+  <div class="relative min-h-screen w-full overflow-hidden">
+    <!-- Background image with blur -->
+    <div
+      class="absolute inset-0 bg-cover bg-center"
+      :style="{ backgroundImage: `url(${backgroundImage})` }"
+    >
+      <div class="absolute inset-0 backdrop-blur-md bg-black/20"></div>
+    </div>
 
-      <div class="profile-content">
-        <!-- 错误边界 -->
-        <div v-if="hasError" class="error-boundary">
-          <el-alert
-            title="页面加载失败"
-            type="error"
-            description="个人资料页面加载时出现错误，请刷新页面重试"
-            show-icon
-            :closable="false"
-          />
-        </div>
+    <!-- Content -->
+    <div class="relative z-10 min-h-screen flex flex-col items-center p-8">
+      <!-- Header -->
+      <div class="w-full max-w-2xl mb-8">
+        <button
+          @click="navigateBack"
+          class="text-white/80 hover:text-white flex items-center gap-2
+transition-colors mb-4"
+        >
+          <arrow-left class="w-5 h-5" />
+          <span>Back to Chat</span>
+        </button>
+        <h1 class="text-white text-4xl font-light tracking-wider">Personal
+Profile</h1>
+        <p class="text-white/60 text-sm mt-1">Manage your personal information</p>     
+      </div>
 
-        <!-- 调试信息 -->
-        <!--
-        <div class="debug-info" v-if="isDevelopment">
-          <el-alert
-            title="调试信息"
-            type="info"
-            :description="`用户ID: ${user.id}, 用户名: ${user.username}`"
-            show-icon
-            :closable="true"
-          />
-        </div>
-        -->
-        
-
-        <!-- 头像区域 -->
-        <div class="avatar-section">
-          <!-- 在头像区域内部添加上传进度显示 -->
-          <div v-if="uploading" class="upload-progress">
-            <el-progress :percentage="uploadProgress" :show-text="false" />
-            <p>上传中... {{ uploadProgress }}%</p>
+      <!-- Profile Form -->
+      <div
+        v-motion
+        :initial="{ opacity: 0, y: 20 }"
+        :enter="{ opacity: 1, y: 0, transition: { duration: 400 } }"
+        class="w-full max-w-2xl bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl    
+  p-8 max-h-[calc(100vh-12rem)] overflow-y-auto profile-scrollbar"
+      >
+        <form @submit.prevent="handleSubmit" class="space-y-6">
+          <!-- Profile Avatar -->
+          <div class="flex flex-col items-center mb-8">
+            <div class="relative">
+              <div class="w-28 h-28 rounded-full bg-gradient-to-br from-cyan-400       
+to-teal-400 flex items-center justify-center overflow-hidden cursor-pointer"
+@click="triggerAvatarUpload">
+                <img v-if="user.avatar_url" :src="user.avatar_url" class="w-full       
+h-full object-cover" />
+                <span v-else class="text-white text-4xl">{{
+displayName.charAt(0).toUpperCase() }}</span>
+              </div>
+              <button
+                type="button"
+                @click="triggerAvatarUpload"
+                class="absolute bottom-0 right-0 bg-gradient-to-r from-cyan-500        
+to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white rounded-full p-2
+shadow-lg transition-all"
+              >
+                <Camera class="w-4 h-4" />
+              </button>
+              <input
+                ref="avatarInput"
+                type="file"
+                accept="image/jpeg,image/png,image/gif"
+                @change="handleAvatarUpload"
+                class="hidden"
+              />
+            </div>
+            <p class="text-gray-600 text-sm mt-4">
+              Name: <span class="text-gray-800">{{ displayName }}</span>, ID: <span    
+  class="text-gray-800">{{ user.id }}</span>
+            </p>
           </div>
 
-          <div class="avatar-container">
-            <div class="avatar-upload" @click="triggerAvatarUpload">
-              <el-avatar 
-                :size="120" 
-                :src="user.avatar_url" 
-                fit="cover"
-                class="avatar"
+          <!-- Upload Progress -->
+          <div v-if="uploading" class="mb-4">
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div
+                class="bg-gradient-to-r from-cyan-500 to-teal-500 h-2 rounded-full     
+transition-all"
+                :style="{ width: `${uploadProgress}%` }"
+              ></div>
+            </div>
+            <p class="text-center text-sm text-cyan-600 mt-2">Uploading... {{
+uploadProgress }}%</p>
+          </div>
+
+          <!-- User ID Field (Read-only) -->
+          <div class="space-y-2">
+            <label class="text-gray-700 font-medium">User ID</label>
+            <div class="relative">
+              <input
+                type="text"
+                :value="user.id"
+                readonly
+                class="w-full bg-gray-50 border border-gray-200 text-gray-400 px-4     
+py-3 rounded-lg cursor-not-allowed"
+              />
+              <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400     
+text-sm">Cannot modify</span>
+            </div>
+          </div>
+
+          <!-- Email Field (Read-only) -->
+          <div class="space-y-2">
+            <label class="text-gray-700 font-medium">Email Address</label>
+            <div class="relative">
+              <input
+                type="email"
+                :value="user.email"
+                readonly
+                class="w-full bg-gray-50 border border-gray-200 text-gray-400 px-4     
+py-3 rounded-lg cursor-not-allowed"
+              />
+              <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400     
+text-sm">Cannot modify</span>
+            </div>
+          </div>
+
+          <!-- Username/Nickname Field -->
+          <div class="space-y-2">
+            <label class="text-gray-700 font-medium">Nickname</label>
+            <div class="relative">
+              <input
+                type="text"
+                v-model="formData.nickname"
+                placeholder="Enter your nickname"
+                maxlength="50"
+                class="w-full bg-white border border-gray-300 text-gray-800 px-4       
+py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50
+focus:border-cyan-500 transition-all"
+              />
+              <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400     
+text-sm">
+                {{ formData.nickname.length }}/50
+              </span>
+            </div>
+          </div>
+
+          <!-- Age Field -->
+          <div class="space-y-2">
+            <label class="text-gray-700 font-medium">Age</label>
+            <div class="relative">
+              <input
+                type="number"
+                v-model.number="formData.age"
+                placeholder="Enter your age"
+                min="1"
+                max="120"
+                class="w-full bg-white border border-gray-300 text-gray-800 px-4       
+py-3 pr-24 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50
+focus:border-cyan-500 transition-all"
+              />
+
+              <!-- Button Container -->
+              <div class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">       
+                <!-- Increment/Decrement Buttons -->
+                <div class="flex flex-col">
+                  <button
+                    type="button"
+                    @click.stop="incrementAge"
+                    class="px-2 py-0.5 bg-gray-100 hover:bg-cyan-500
+hover:text-white border border-gray-300 rounded-t transition-colors"
+                    title="Increment"
+                  >
+                    <Plus class="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    @click.stop="decrementAge"
+                    class="px-2 py-0.5 bg-gray-100 hover:bg-cyan-500
+hover:text-white border border-gray-300 border-t-0 rounded-b transition-colors"        
+                    title="Decrement"
+                  >
+                    <Minus class="w-3 h-3" />
+                  </button>
+                </div>
+
+                <!-- Dropdown Button -->
+                <button
+                  type="button"
+                  @click="showAgeDropdown = !showAgeDropdown"
+                  class="px-2 py-2 bg-gray-100 hover:bg-cyan-500 hover:text-white border border-gray-300 rounded transition-colors"
+                  title="Select from list"
+                >
+                  <chevron-down v-if="!showAgeDropdown" class="w-4 h-4" />
+                  <chevron-up v-else class="w-4 h-4" />
+                </button>
+              </div>
+
+              <!-- Age Dropdown -->
+              <div
+                v-if="showAgeDropdown"
+                v-motion
+                :initial="{ opacity: 0, y: -10 }"
+                :enter="{ opacity: 1, y: 0 }"
+                ref="ageDropdownRef"
+                class="absolute z-10 w-full mt-1 bg-white border border-gray-300       
+rounded-lg shadow-lg max-h-60 overflow-y-auto"
               >
-                {{ displayName?.charAt(0)?.toUpperCase() || 'U' }}
-              </el-avatar>
-              <div class="avatar-overlay">
-                <el-icon><Camera /></el-icon>
-                <span>更换头像</span>
+                <button
+                  v-for="age in ageOptions"
+                  :key="age"
+                  type="button"
+                  @click="selectAge(age)"
+                  class="w-full px-4 py-2 text-left hover:bg-cyan-50
+transition-colors text-gray-800"
+                >
+                  {{ age }}
+                </button>
               </div>
             </div>
-            <input 
-              ref="avatarInput"
-              type="file" 
-              accept="image/jpeg,image/png,image/gif"
-              @change="handleAvatarUpload"
-              style="display: none;"
-            />
           </div>
-          <p class="upload-tip">支持 JPG、PNG 格式，大小不超过 5MB</p>
-        </div>
 
-        <!-- 基本信息表单 -->
-        <el-form 
-          :model="formData" 
-          label-width="100px" 
-          class="profile-form"
-          @submit.prevent="handleSubmit"
-        >
-          <el-form-item label="用户名">
-            <el-input 
-              v-model="user.username" 
-              disabled 
-              placeholder="用户名"
+          <!-- Gender Field -->
+          <div class="space-y-2">
+            <label class="text-gray-700 font-medium">Gender</label>
+            <div class="relative">
+              <input
+                type="text"
+                :value="getGenderLabel(formData.gender)"
+                readonly
+                @click="showGenderDropdown = !showGenderDropdown"
+                class="w-full bg-white border border-gray-300 text-gray-800 px-4       
+py-3 pr-12 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50
+focus:border-cyan-500 transition-all cursor-pointer"
+              />
+
+              <!-- Dropdown Button -->
+              <button
+                type="button"
+                @click="showGenderDropdown = !showGenderDropdown"
+                class="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-2
+bg-gray-100 hover:bg-cyan-500 hover:text-white border border-gray-300 rounded
+transition-colors"
+                title="Select gender"
+              >
+                <chevron-down v-if="!showGenderDropdown" class="w-4 h-4" />
+                <chevron-up v-else class="w-4 h-4" />
+              </button>
+
+              <!-- Gender Dropdown -->
+              <div
+                v-if="showGenderDropdown"
+                v-motion
+                :initial="{ opacity: 0, y: -10 }"
+                :enter="{ opacity: 1, y: 0 }"
+                ref="genderDropdownRef"
+                class="absolute z-10 w-full mt-1 bg-white border border-gray-300       
+rounded-lg shadow-lg overflow-hidden"
+              >
+                <button
+                  v-for="option in genderOptions.slice(1)"
+                  :key="option.value"
+                  type="button"
+                  @click="selectGender(option.value)"
+                  class="w-full px-4 py-2 text-left hover:bg-cyan-50
+transition-colors text-gray-800"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bio Field -->
+          <div class="space-y-2">
+            <label class="text-gray-700 font-medium">Personal Bio</label>
+            <div class="relative">
+              <textarea
+                v-model="formData.bio"
+                placeholder="Tell us about yourself..."
+                rows="4"
+                maxlength="800"
+                class="w-full bg-white border border-gray-300 text-gray-800 px-4       
+py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50
+focus:border-cyan-500 transition-all resize-none"
+              />
+              <span class="absolute right-4 bottom-3 text-gray-400 text-sm">
+                {{ formData.bio.length }}/800
+              </span>
+            </div>
+          </div>
+
+          <!-- Additional Info -->
+          <div class="pt-4 border-t border-gray-200 space-y-2">
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600">User ID</span>
+              <span class="text-gray-400">{{ user.id }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600">Registration Date</span>
+              <span class="text-gray-400">{{ formatDate(user.created_at) }}</span>     
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600">Last Modified</span>
+              <span class="text-gray-400">{{ formatDate(user.updated_at) }}</span>     
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex gap-4 pt-6">
+            <button
+              type="submit"
+              :disabled="!hasChanges || loading"
+              class="flex-1 bg-gradient-to-r from-cyan-500 to-teal-500
+hover:from-cyan-600 hover:to-teal-600 text-white py-3 px-8 rounded-lg
+transition-all shadow-lg hover:shadow-xl disabled:opacity-50
+disabled:cursor-not-allowed font-medium"
             >
-              <template #append>
-                <el-tag type="info" size="small">不可修改</el-tag>
-              </template>
-            </el-input>
-          </el-form-item>
-
-          <el-form-item label="邮箱地址">
-            <el-input 
-              v-model="user.email" 
-              disabled 
-              placeholder="邮箱地址"
-            >
-              <template #append>
-                <el-tag type="info" size="small">不可修改</el-tag>
-              </template>
-            </el-input>
-          </el-form-item>
-
-          <el-form-item label="昵称">
-            <el-input 
-              v-model="formData.nickname" 
-              placeholder="请输入昵称"
-              maxlength="50"
-              show-word-limit
-              clearable
-            />
-          </el-form-item>
-
-          <el-form-item label="年龄">
-            <el-input-number 
-              v-model="formData.age" 
-              :min="1" 
-              :max="150" 
-              placeholder="请输入年龄"
-              controls-position="right"
-            />
-          </el-form-item>
-
-          <el-form-item label="个人简介">
-            <el-input
-              v-model="formData.bio"
-              type="textarea"
-              :rows="3"
-              placeholder="介绍一下自己..."
-              maxlength="500"
-              show-word-limit
-              resize="none"
-            />
-          </el-form-item>
-
-          <el-divider content-position="left">系统信息</el-divider>
-
-          <el-form-item label="用户ID">
-            <div class="readonly-field">{{ user.id || '-' }}</div>
-          </el-form-item>
-
-          <el-form-item label="注册时间">
-            <div class="readonly-field">{{ formatDate(user.created_at) }}</div>
-          </el-form-item>
-
-          <el-form-item label="最后更新">
-            <div class="readonly-field">{{ formatDate(user.updated_at) }}</div>
-          </el-form-item>
-
-          <el-form-item class="form-actions">
-            <el-button 
-              type="primary" 
-              @click="handleSubmit"
-              :loading="loading"
-              :disabled="!hasChanges"
-            >
-              <el-icon><Check /></el-icon>
-              保存更改
-            </el-button>
-            <el-button 
+              <span v-if="loading">Saving...</span>
+              <span v-else>Confirm Changes</span>
+            </button>
+            <button
+              type="button"
               @click="resetForm"
               :disabled="!hasChanges || loading"
+              class="px-8 py-3 border border-gray-300 text-gray-700
+hover:bg-gray-50 rounded-lg transition-all disabled:opacity-50
+disabled:cursor-not-allowed"
             >
-              <el-icon><Close /></el-icon>
-              取消
-            </el-button>
-            <el-button 
-              type="text" 
-              @click="$router.back()"
+              Cancel
+            </button>
+            <button
+              type="button"
+              @click="handleSignOut"
+              class="px-8 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg       
+transition-all"
             >
-              返回
-            </el-button>
-          </el-form-item>
-        </el-form>
+              Sign Out
+            </button>
+          </div>
+        </form>
       </div>
-    </el-card>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
-import { Camera } from '@element-plus/icons-vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '@/stores/user';
 import { getProfile, updateProfile } from '@/api/profile';
+import { getCurrentUser } from '@/api/auth'
+import { Camera, Plus, Minus } from '@element-plus/icons-vue'
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-vue-next'
 
 const userStore = useUserStore();
+const router = useRouter();
 const avatarInput = ref(null);
 const loading = ref(false);
 const loadingUserData = ref(true);
 
-// 新增的状态变量
+const showAgeDropdown = ref(false)
+const showGenderDropdown = ref(false)
+const ageDropdownRef = ref(null)
+const genderDropdownRef = ref(null)
+
+// 背景图片
+const backgroundImage = '/images/auth-bg.png'
+
+// 性别选项
+const genderOptions = [
+  { value: '', label: 'Please select gender' },
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'other', label: 'Other' }
+]
+
+// 状态变量
 const hasError = ref(false);
 const isDevelopment = ref(import.meta.env.MODE === 'development');
 const uploading = ref(false);
@@ -201,6 +378,7 @@ const user = reactive({
   email: '',
   nickname: '',
   age: null,
+  gender: '',
   bio: '',
   avatar_url: '',
   created_at: '',
@@ -211,6 +389,7 @@ const user = reactive({
 const formData = reactive({
   nickname: '',
   age: null,
+  gender: '',
   bio: ''
 });
 
@@ -227,7 +406,7 @@ const hasChanges = computed(() => {
          !!newAvatarFile.value;
 });
 
-// 添加：hasNewAvatar 计算属性
+// hasNewAvatar 计算属性
 const hasNewAvatar = computed(() => {
   return !!newAvatarFile.value;
 });
@@ -273,6 +452,7 @@ const resetForm = () => {
   Object.assign(formData, {
     nickname: user.nickname || '',
     age: user.age || null,
+    gender: user.gender || '',
     bio: user.bio || ''
   });
 
@@ -282,7 +462,7 @@ const resetForm = () => {
     avatarInput.value.value = '';
   }
 
-  // 添加：恢复原始头像
+  // 恢复原始头像
   if (user.original_avatar_url) {
     user.avatar_url = user.original_avatar_url;
   }
@@ -307,6 +487,9 @@ const handleSubmit = async () => {
     }
     if (formData.age !== user.age) {
       formDataToSend.append('age', formData.age);
+    }
+    if (formData.gender !== user.gender) {
+      formDataToSend.append('gender', formData.gender)
     }
     if (formData.bio !== user.bio) {
       formDataToSend.append('bio', formData.bio);
@@ -409,279 +592,112 @@ const handleError = (error) => {
   hasError.value = true;
 };
 
+// Age 操作方法
+const incrementAge = () => {
+  const currentAge = formData.age || 0
+  if (currentAge < 120) {
+    formData.age = currentAge + 1
+  }
+}
+
+const decrementAge = () => {
+  const currentAge = formData.age || 0
+  if (currentAge > 1) {
+    formData.age = currentAge - 1
+  }
+}
+
+const selectAge = (age) => {
+  formData.age = age
+  showAgeDropdown.value = false
+}
+
+// 计算属性：年龄选项列表
+const ageOptions = computed(() => {
+  return Array.from({ length: 120 }, (_, i) => i + 1)
+})
+
+// Gender 操作方法
+const selectGender = (gender) => {
+  formData.gender = gender
+  showGenderDropdown.value = false
+}
+
+const getGenderLabel = (value) => {
+  const option = genderOptions.find(opt => opt.value === value)
+  return option ? option.label : 'Please select gender'
+}
+
+// 处理点击外部关闭下拉菜单
+const handleClickOutside = (event) => {
+  if (ageDropdownRef.value && !ageDropdownRef.value.contains(event.target)) {
+    showAgeDropdown.value = false
+  }
+  if (genderDropdownRef.value && !genderDropdownRef.value.contains(event.target)) {    
+    showGenderDropdown.value = false
+  }
+}
+
 onMounted(() => {
   try {
     loadUserData();
   } catch (error) {
     handleError(error);
   }
+  document.addEventListener('mousedown', handleClickOutside)
 });
+
+const navigateBack = () => {
+    router.push('/chat')
+}
+
+onUnmounted(() => {
+  document.removeEventListener('mousedown', handleClickOutside)
+})
+
+const handleSignOut = async () => {
+  try {
+    await ElMessageBox.confirm('Are you sure you want to sign out?', 'Confirm', {      
+      confirmButtonText: 'Sign Out',
+      cancelButtonText: 'Cancel',
+      type: 'warning'
+    })
+
+    userStore.logout()
+    router.push('/login')
+    ElMessage.success('Signed out successfully')
+  } catch {
+    // User cancelled
+  }
+}
+
 </script>
 
 
 <style scoped>
-.profile-container {
-  min-height: 100vh;
-  background: #f5f7fa;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 20px;
-}
-
-.centered-layout {
-  width: 100%;
-  max-width: 600px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.error-boundary {
-  width: 100%;
-  max-width: 600px;
-}
-
-.profile-header {
-  text-align: center;
-  margin-bottom: 30px;
-  width: 100%;
-}
-
-.profile-header h1 {
-  color: #303133;
-  font-size: 28px;
-  margin: 0 0 8px 0;
-  font-weight: 600;
-}
-
-.subtitle {
-  color: #909399;
-  font-size: 14px;
-  margin: 0;
-}
-
-.profile-content {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
-}
-
-.loading-state {
-  width: 100%;
-  text-align: center;
-  padding: 40px 0;
-}
-
-.loading-text {
-  margin-top: 10px;
-  color: #909399;
-}
-
-.debug-info {
-  width: 100%;
-  margin-bottom: 20px;
-}
-
-.avatar-section {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.avatar-container {
-  display: inline-block;
-  margin-bottom: 12px;
-}
-
-/* 头像上传区域样式 */
-.avatar-upload {
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
-  border-radius: 50%;
-  width: 120px; /* 与头像大小一致 */
-  height: 120px; /* 与头像大小一致 */
-  overflow: hidden; /* 确保圆形边界 */
-}
-
-.avatar {
-  width: 100%;
-  height: 100%;
-}
-
-.avatar-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.avatar-wrapper:hover .avatar-overlay {
-  opacity: 1;
-}
-
-.avatar-overlay .el-icon {
-  font-size: 24px;
-  margin-bottom: 4px;
-}
-
-.avatar-overlay span {
-  font-size: 12px;
-}
-
-.avatar-tip {
-  color: #909399;
-  font-size: 12px;
-  margin: 0;
-}
-
-.profile-form {
-  width: 100%;
-  background: white;
-  padding: 30px;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* 表单项目保持默认的左右分布，内容左对齐 */
-:deep(.el-form-item) {
-  margin-bottom: 24px;
-}
-
-:deep(.el-form-item__label) {
-  font-weight: 600;
-  color: #303133;
-  text-align: left;
-}
-
-/* 标准输入框样式 - 统一大小 */
-.standard-input :deep(.el-input__inner) {
-  width: 100%;
-  text-align: left;
-}
-
-.standard-textarea :deep(.el-textarea__inner) {
-  width: 100%;
-  text-align: left;
-  resize: none;
-}
-
-/* 年龄输入框特殊样式 */
-.age-input :deep(.el-input__inner) {
-  width: 120px; /* 年龄输入框较小 */
-  text-align: left;
-}
-
-.system-info {
-  width: 100%;
-  margin: 30px 0 20px;
-  padding-top: 20px;
-  border-top: 1px solid #e4e7ed;
-}
-
-.system-title {
-  color: #303133;
-  font-size: 18px;
-  margin: 0 0 20px 0;
-  font-weight: 600;
-  text-align: left;
-}
-
-.info-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.info-label {
-  color: #606266;
-  font-size: 14px;
-  font-weight: 500;
-  text-align: left;
-}
-
-.info-value {
-  color: #303133;
-  font-size: 14px;
-  font-weight: 500;
-  text-align: left;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: center;
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #e4e7ed;
-  width: 100%;
-}
-
-.form-actions .el-button {
-  margin: 0 8px;
-  min-width: 100px;
-}
-
-/* 上传进度样式 */
-.upload-tip {
-  margin: 0;
-  color: #909399;
-  font-size: 12px;
-}
-
-.upload-progress {
-  margin-top: 12px;
-  text-align: center;
-}
-
-.upload-progress p {
-  margin: 5px 0 0 0;
-  font-size: 12px;
-  color: #409eff;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .profile-container {
-    padding: 16px;
+  .profile-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
+    margin-right: -16px;
+    padding-right: 8px;
   }
-  
-  .profile-form {
-    padding: 20px;
-  }
-  
-  .form-actions {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .form-actions .el-button {
-    width: 100%;
-    margin: 0;
-  }
-  
-  /* 在移动端，年龄输入框也使用全宽 */
-  .age-input :deep(.el-input__inner) {
-    width: 100%;
-  }
-}
-</style>
 
+  .profile-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
 
+  .profile-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 8px 0;
+  }
+
+  .profile-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  .profile-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.7);
+  }
+  </style>
