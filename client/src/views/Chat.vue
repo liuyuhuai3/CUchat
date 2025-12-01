@@ -1,17 +1,12 @@
 <template>
-  <div class="relative min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-    <!-- 连接状态指示器 -->
-    <div v-if="!isConnected" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-90 max-w-md">
-      <el-alert
-        type="warning"
-        :closable="false"
-        show-icon
-      >
-        <template #title>
-          连接已断开，正在重连...
-        </template>
-      </el-alert>
-    </div>
+ <div class="relative min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+
+      <!-- 保留：连接状态提示 -->
+      <div v-if="!isConnected" class="fixed top-4 left-1/2-translate-x-1/2 z-[100] w-90 max-w-md">
+        <el-alert type="warning" :closable="false" show-icon>
+          <template #title>连接已断开，正在重连...</template>
+        </el-alert>
+      </div>
 
     <!-- Main Container -->
     <div class="h-screen flex">
@@ -101,115 +96,158 @@
           </div>
         </div>
 
-        <!-- vue-advanced-chat Component -->
-        <div class="flex-1 relative chat-background">
-          <vue-advanced-chat
-            :current-user-id="userStore.user?.id.toString()"
-            :rooms="JSON.stringify(chatStore.rooms)"
-            :messages="JSON.stringify(chatStore.formattedMessages)"
-            :messages-loaded="chatStore.messagesLoaded"
-            :loading-rooms="chatStore.loadingRooms"
-            :rooms-loaded="chatStore.roomsLoaded"
-            :single-room="true"
-            :room-id="chatStore.currentRoom.roomId"
-            :show-emojis="true"
-            :show-reaction-emojis="true"
-            :show-files="true"
-            :show-audio="true"
-            :textarea-action-enabled="true"
-            height="100%"
-            @fetch-messages="handleFetchMessages"
-            @send-message="handleSendMessage"
-            @edit-message="handleEditMessage"
-            @delete-message="handleDeleteMessage"
-            @typing-message="handleTyping"
-            @send-message-reaction="handleSendReaction"
-            @open-file="handleOpenFile"
-            @textarea-action-handler="openStickerPicker"
+         <!-- ⭐⭐⭐
+  替换：消息区域（参考 Cuchat
+  ChatRoom.tsx line 571-654） -->
+          <div
+            ref="chatContainerRef"
+            class="flex-1
+  overflow-y-auto p-6 space-y-4
+  custom-scrollbar"
+            style="
+              background-image:
+  url('/images/chat-bg.png');
+              background-size: cover;
+              background-position:
+  center;
+            "
           >
-            <!-- Custom Footer with Toolbar -->
-            <template #room-header>
-              <div></div>
-            </template>
+            <div class="max-w-4xl
+  mx-auto space-y-4">
+              <!-- 消息列表 -->
+              <MessageBubble
+                v-for="msg in chatStore.messages"
+                :key="msg.id"
+                :message="msg"
+              />
+              <div
+  ref="messagesEndRef"></div>
+            </div>
+          </div>
 
-            <!-- Sticker 按钮 -->
-            <template #custom-action-icon>
-              <div style="font-size: 20px;" title="发送贴纸">STICKER</div>
-            </template>
-          
-            <!-- Custom toolbar before textarea -->
-            <template #room-footer-prepend>
-              <div class="custom-toolbar">
-                <!-- Emoji Button -->
+          <!-- ⭐⭐⭐替换：输入区域（参考 Cuchat ChatRoom.tsx line 656-828） -->
+          <div class="bg-slate-800/90
+  backdrop-blur-sm px-6 py-4 border-t
+  border-white/10 relative">
+
+            <!-- Emoji选择器 -->
+            <div
+              v-if="showEmojiPicker"
+              ref="emojiPickerRef"
+              v-motion
+              :initial="{ opacity: 0, y:
+   10 }"
+              :enter="{ opacity: 1, y: 0
+   }"
+              class="absolute bottom-20
+                      left-6 bg-slate-800/95
+                      backdrop-blur-md rounded-lg shadow-xl
+                      border border-white/10 p-4 z-50"
+            >
+              <div class="grid
+              grid-cols-8 gap-2 max-w-sm max-h-96
+              overflow-y-auto custom-scrollbar">
                 <button
-                  @click="toggleEmojiPicker"
-                  :class="['custom-toolbar-btn', { active: showEmojiPicker }]"
-                  title="Emoji"
+                  v-for="(emoji, index)
+  in allEmojis"
+                  :key="index"
                   type="button"
+
+  @click="handleEmojiSelect(emoji)"
+                  class="text-2xl
+  hover:bg-white/10 rounded p-2
+  transition-colors"
+                >
+                  {{ emoji }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Sticker选择器 -->
+            <el-dialog v-model="showStickerDialog" width="450px" title="选择贴纸">
+              <GiphyPicker @select-gif="handleSelectGif" />
+            </el-dialog>
+
+            <!-- 语音录制组件 -->
+            <VoiceRecorder
+              v-if="isRecording"
+              @recording-complete="handleRecordingComplete"
+              @cancel="() => isRecording= false"
+              @error="(error) => ElMessage.error(error)"
+            />
+
+            <!-- 输入框 -->
+            <form @submit.prevent="handleSendMessage" class="max-w-4xlmx-auto">
+              <div class="flexitems-center gap-3">
+                <!-- Emoji按钮 -->
+                <button type="button" @click="showEmojiPicker =!showEmojiPicker"
+:class="['text-white/70 hover:text-white hover:bg-white/10rounded-full p-2 transition-colors', {'bg-white/10 text-white':showEmojiPicker }]"
                 >
                   <Smile :size="20" />
                 </button>
 
-                <!-- Sticker Button -->
-                <button
-                  @click="openStickerPicker"
-                  :class="['custom-toolbar-btn', { active: showStickerDialog }]"
-                  title="Sticker"
-                  type="button"
+                <!-- Sticker按钮 -->
+                <button type="button" @click="showStickerDialog = true" class="text-white/70 hover:text-white hover:bg-white/10 rounded-full p-2 transition-colors"
                 >
                   <Sticker :size="20" />
                 </button>
 
-                <!-- Image Upload Button -->
-                <button
-                  @click="triggerImageUpload"
-                  class="custom-toolbar-btn image-upload-btn"
-                  title="上传图片"
-                  type="button"
+                <!-- 图片上传按钮 -->
+                <button type="button" @click="triggerImageUpload"
+                  class="text-white/70 hover:text-white hover:bg-white/10 rounded-full p-2 transition-colors"
                 >
-                  <ImageIcon :size="20" />
+                  <ImageIcon :size="20"/>
                 </button>
                 <input
                   ref="imageInputRef"
                   type="file"
-                  accept="image/*"
+                  accept="image/*" 
                   @change="handleImageUpload"
-                  style="display: none;"
+                  style="display: none"
                 />
 
-                <!-- Voice Recording Button -->
+                <!-- 语音按钮 -->
                 <button
-                  @click="toggleVoiceRecording"
-                  :class="['custom-toolbar-btn', { active: isRecording }]"
-                  title="Voice Message"
                   type="button"
+                  @click="isRecording =!isRecording"
+:class="['text-white/70hover:text-white hover:bg-white/10rounded-full p-2 transition-colors', {'bg-red-500/50 text-white':isRecording }]"
                 >
-                  <Mic :size="20"/>
+                  <Mic :size="20" />
+                </button>
+
+                <!-- 输入框 -->
+                <input
+                  ref="messageInputRef"
+                  v-model="message"
+                  type="text"
+                  placeholder="Type a message..."
+                  class="flex-1 bg-white/10 text-white placeholder:text-white/50 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all"
+                />
+
+                <!-- 发送按钮 -->
+                <button
+                  type="submit"
+
+                  class="bg-gradient-to-r from-cyan-500
+                  to-teal-500 hover:from-cyan-600
+                  hover:to-teal-600 text-white
+                  rounded-full p-3 transition-all
+                  shadow-lg hover:shadow-xl"
+                >
+                  <Send :size="20" />
                 </button>
               </div>
-            </template>
-          </vue-advanced-chat>
-                  
-          <!-- Sticker 选择器弹窗 -->
-          <el-dialog v-model="showStickerDialog" width="450px" title="选择贴纸"> 
-            <GiphyPicker @select-gif="handleSelectGif"/>
-          </el-dialog>
-
-          <!-- Emoji Picker Popup -->
-          <div v-if="showEmojiPicker" class="emoji-picker-popup">
-            <emoji-picker-element
-@emoji-click="handleEmojiClick"></emoji-picker-element>
+            </form>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</template>
+  </template>
 
 <script setup>
 import GiphyPicker from '@/components/GiphyPicker.vue'; // 导入 GiphyPicker
 // import axios from 'axios';
-import { ref, onMounted, onUnmounted } from 'vue';
+import {ref, onMounted, onUnmounted, nextTick, watch, computed} from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { User, ArrowDown, SwitchButton } from '@element-plus/icons-vue';
@@ -219,21 +257,35 @@ import { useUserStore } from '@/stores/user';
 import { getMessages } from '@/api/chat';
 import { addReaction } from '@/api/chat';
 import { convertMessagesToChatMessages } from '@/utils/chatAdapter';
-import { watch } from 'vue';
 import { getCurrentUser } from '@/api/auth';
 import request from '@/utils/request';
-import { Settings, Users, User as UserIcon, LogOut, Smile, Sticker, Image as ImageIcon, Mic } from 'lucide-vue-next';
+import { Settings, Users, User as UserIcon, LogOut, Smile, Sticker, Image as ImageIcon, Mic, Send} from 'lucide-vue-next';
+import MessageBubble from '@/components/MessageBubble.vue';
+import VoiceRecorder from '@/components/VoiceRecorder.vue';
 
 const stickerIcon = '❤️'
 const router = useRouter();
 const chatStore = useChatStore();
 const userStore = useUserStore();
-const showStickerDialog = ref(false);
+
 const showSettingsMenu = ref(false);
-const settingsRef = ref(null)
-const showEmojiPicker = ref(false)
-const imageInputRef = ref(null)
-const isRecording = ref(false)
+const settingsRef = ref(null);
+const message = ref('');
+const showEmojiPicker = ref(false);
+const showStickerDialog = ref(false);
+const isRecording = ref(false);
+
+// DOM 引用
+const messageInputRef = ref(null);
+// 输入框引用
+const imageInputRef = ref(null);
+// 图片上传input引用
+const emojiPickerRef = ref(null);
+// Emoji选择器引用
+const messagesEndRef = ref(null);
+// 消息列表底部锚点
+const chatContainerRef = ref(null);
+// 聊天容器引用
 
 // 打开 Sticker 选择器的方法
 const openStickerPicker = () => {
@@ -542,15 +594,14 @@ const uploadFile = async (file) => {
 
     console.log('  准备上传的 File 对象:', fileToUpload);
 
+    // 根据文件类型选择上传接口
     let uploadUrl = '/upload/file';
     let fieldName = 'file';
 
-    // 根据文件类型选择上传接口
     if (file.audio) {
       uploadUrl = '/upload/audio';
       fieldName = 'audio';
-    } else if (['png', 'jpg', 'jpeg', 'gif',
-'webp'].includes(file.extension)) {
+    } else if (['png', 'jpg', 'jpeg', 'gif','webp'].includes(file.extension)) {
       uploadUrl = '/upload/image';
       fieldName = 'image';
     }
@@ -582,81 +633,75 @@ const uploadFile = async (file) => {
 /**
  * 发送消息
  */
-const handleSendMessage = async (eventData) => {
-  try {
-    // 从 CustomEvent 的 detail[0] 中提取数据
-    const { content, roomId, files, replyMessage } = eventData.detail[0];
+const handleSendMessage = () => {
+// 验证消息不为空
+if (!message.value.trim()) return;
+  
+  // 构造消息数据（与后端API格式一致）
+  const messageData = {
+   roomId: chatStore.currentRoom.roomId ||
+  '1',  // 房间ID
+   content: message.value.trim(),
+      // 消息内容
+   messageType: 'text'
+      // 消息类型
+  };
+  
+  // 通过 WebSocket 发送消息
+  sendMessage(messageData);
+  
+  // 清空输入框
+  message.value = '';
+  
+  // 滚动到底部
+  nextTick(() => {
+   scrollToBottom();
+  });
+  };
 
-    console.log('  发送消息:', { content, roomId, files, replyMessage });
-
-    // 验证内容
-    if (!content && (!files || files.length === 0)) {
-      console.warn('消息内容和文件都为空，取消发送');
-      return;
+  /**
+  - 滚动到消息列表底部
+  */
+  const scrollToBottom = () => {
+    if (messagesEndRef.value) {
+      messagesEndRef.value.scrollIntoView({
+        behavior: 'smooth',  // 平滑滚动
+        block: 'end'         // 滚动到元素底部
+      });
     }
-
-    const messageData = {
-      roomId: roomId || '1',
-      content: content || '',
-      messageType: 'text'
-    };
-
-    // 如果有文件，先上传
-    if (files && files.length > 0) {
-      const file = files[0];
-
-      // 上传文件到服务器
-      const uploadedUrl = await uploadFile(file);
-      
-      
-      if (!uploadedUrl) return; // 上传失败则不发送消息
-
-      messageData.fileUrl = uploadedUrl;
-      messageData.fileSize = file.size;
-      messageData.fileName = file.name;
-
-      if (file.audio) {
-        messageData.messageType = 'audio';
-        messageData.audioDuration = file.duration;
-      } else if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(file.extension)) {
-        messageData.messageType = 'image';
-        messageData.thumbnailUrl = uploadedUrl;
-      }
-    }
-
-    // 如果是回复消息
-    if (replyMessage) {
-      messageData.replyToId = parseInt(replyMessage._id);
-    }
-
-    // 通过 WebSocket 发送
-    sendMessage(messageData);
-
-  } catch (error) {
-    console.error('发送消息失败:', error);
-    ElMessage.error('发送消息失败');
-  }};
+  };
 
   
-  // 处理选择 GIF Sticker
-  const handleSelectGif = async (gif) => {
-  try {
-    const messageData = {
-      roomId: chatStore.currentRoom.roomId || '1',
-      content: '',
-      messageType: 'image',
-      fileUrl: gif.url,
-      fileName: gif.name
-    };  // ← 这里需要分号
-
-    sendMessage(messageData);  // ← 添加这行：实际发送消息
-
-  } catch (error) {  // ← catch 前需要 } 闭合 try 块
-    console.error('发送表情包失败:', error);
-    ElMessage.error('发送表情包失败');
+   /**
+- 选择 GIF Sticker（参考 Cuchat
+ChatRoom.tsx line 348-363）
+*/
+const handleSelectGif = async (gif) => {
+try {
+ // 构造消息数据
+ const messageData = {
+   roomId: chatStore.currentRoom.roomId || '1',
+   content: '',                    //Sticker 没有文本内容
+   messageType: 'image',           //Sticker 当作图片消息
+   fileUrl: gif.url,               // GIF的 URL
+   fileName: gif.name || 'sticker' //文件名
+ };
+  
+   // 发送消息
+   sendMessage(messageData);
+  
+   // 关闭选择器
+   showStickerDialog.value = false;
+  
+   // 滚动到底部
+   nextTick(() => {
+     scrollToBottom();
+   });
+  } catch (error) {
+   console.error('发送表情包失败:', error);
+   ElMessage.error('发送表情包失败');
   }
-}; 
-
+  };
 /**
  * 处理添加 Emoji 到输入框
  */
@@ -754,7 +799,234 @@ const handleOpenFile = ({ message, file }) => {
     ElMessage.warning('文件 URL 不可用');
   }
 };  //   handleOpenFile 独立的函数
+
+/**
+- Emoji 分类数据（完全参考 Cuchat
+ChatRoom.tsx line 406-414）
+*/
+const emojiCategories = {
+'Smileys': [
+ '😀', '😃', '😄', '😁', '😆', '😅',
+'🤣', '😂', '🙂', '🙃',
+ '😉', '😊', '😇', '🥰', '😍', '🤩',
+'😘', '😗', '😚', '😙',
+ '🥲', '😋', '😛', '😜', '🤪', '😝',
+'🤑', '🤗', '🤭', '🤫',
+ '🤔', '🤐', '🤨', '😐', '😑', '😶',
+'😏', '😒', '🙄', '😬',
+ '🤥', '😌', '😔', '😪', '🤤', '😴'
+],
+'Emotions': [
+ '😕', '😟', '🙁', '☹️', '😮', '😯',
+'😲', '😳', '🥺', '😦',
+ '😧', '😨', '😰', '😥', '😢', '😭',
+'😱', '😖', '😣', '😞',
+ '😓', '😩', '😫', '🥱', '😤', '😡',
+'😠', '🤬', '😈', '👿',
+ '💀', '☠️', '💩', '🤡', '👹', '👺',
+'👻', '👽', '👾', '🤖'
+],
+'Gestures': [
+ '👋', '🤚', '🖐️', '✋', '🖖', '👌',
+'🤌', '🤏', '✌️', '🤞',
+ '🤟', '🤘', '🤙', '👈', '👉', '👆',
+'🖕', '👇', '☝️', '👍',
+ '👎', '✊', '👊', '🤛', '🤜', '👏',
+'🙌', '👐', '🤲', '🤝',
+ '🙏', '✍️', '💅', '🤳', '💪'
+],
+'Hearts': [
+ '❤️', '🧡', '💛', '💚', '💙', '💜',
+'🤎', '🖤', '🤍', '💔',
+ '❣️', '💕', '💞', '💓', '💗', '💖',
+'💘', '💝', '💟'
+],
+'Symbols': [
+ '✨', '⭐', '🌟', '💫', '✔️', '✅',
+'❌', '❎', '🔥', '💯',
+ '🎉', '🎊', '🎈', '🎁', '🏆', '🥇',
+'🥈', '🥉', '⚡', '💥',
+ '💢', '💦', '💨'
+]
+};
+
+/**
+- 扁平化所有 emoji（使用 computed
+自动响应式）
+*/
+const allEmojis = computed(() => {
+  return Object.values(emojiCategories).flat();
+});
+
+/**
+- 选择 Emoji 并插入到输入框
+*/
+const handleEmojiSelect = (emoji) => {
+  const input = messageInputRef.value;
+    
+    if (input) {
+    // ======== 获取当前光标位置 ========
+    const start = input.selectionStart || 0;
+    const end = input.selectionEnd || 0;        
+    
+    // ======== 在光标位置插入 emoji ========
+    const newValue =
+      message.value.substring(0, start) +
+    // 光标前的内容
+      emoji +
+    // emoji
+      message.value.substring(end);
+    // 光标后的内容
+    
+    message.value = newValue;
+    
+    // ======== 恢复光标位置 ========
+    nextTick(() => {
+      input.focus();  //
+    让输入框重新获得焦点
+      const newPosition = start +
+    emoji.length;
+      input.setSelectionRange(newPosition,
+    newPosition);
+    });
+    } else {
+    // 如果获取不到 input引用，直接追加到末尾
+    message.value += emoji;
+    }
+    
+    // 不关闭选择器，允许用户连续选择多个emoji
+    // showEmojiPicker.value = false;  // ❌不要这行
+};
+
+  /**
+- 点击外部关闭 Emoji 选择器
+*/
+const handleEmojiClickOutside = (event) => {
+// 检查点击的元素是否在 emoji 选择器内部
+if (emojiPickerRef.value && !emojiPickerRef.value.contains(event.target)) {
+ showEmojiPicker.value = false;
+}
+};
+  
+  /**
+- 在组件挂载时添加监听
+*/
+onMounted(() => {
+// ... 你原有的挂载逻辑 ...
+  
+  // 添加 Emoji 选择器的点击外部监听
+  document.addEventListener('mousedown',
+  handleEmojiClickOutside);
+  
+  // 保留原有的 settings 菜单监听
+  document.addEventListener('mousedown',
+  handleSettingsClickOutside);
+  });
+  
+  /**
+- 在组件卸载时移除监听
+*/
+onUnmounted(() => {
+// ... 你原有的卸载逻辑 ...
+  
+  // 移除监听
+  document.removeEventListener('mousedown',
+  handleEmojiClickOutside);
+  document.removeEventListener('mousedown',
+  handleSettingsClickOutside);
+  });
+
+   /**
+- 语音录制完成（参考 Cuchat ChatRoom.tsx
+line 227-240）
+*/
+const handleRecordingComplete = async(audioBlob, duration) => {
+    try {
+    console.log('录音完成:', { size:
+    audioBlob.size, duration });
+      
+   // ======== 第一步：构造文件对象 ========
+  
+   // 创建音频文件对象（File API）
+   const audioFile = new File(
+     [audioBlob],
+     `voice_${Date.now()}.webm`,  //使用时间戳命名
+     { type: 'audio/webm' }
+   );
+  
+   // 构造与 uploadFile 兼容的文件对象
+   const fileObj = {
+     blob: audioBlob,
+     name: `voice_${Date.now()}`,
+     type: 'audio/webm',
+     extension: 'webm',
+     size: audioBlob.size,
+     audio: true  // ⭐重要：标记为音频文件
+   };
+  
+   // ======== 第二步：上传到服务器 ========
+  
+   const uploadedUrl = await
+  uploadFile(fileObj);
+  
+   if (!uploadedUrl) {
+     ElMessage.error('语音上传失败');
+     isRecording.value = false;
+     return;
+   }
+  
+   console.log('语音上传成功:',
+  uploadedUrl);
+  
+   // ======== 第三步：发送语音消息========
+  
+   const messageData = {
+     roomId: chatStore.currentRoom.roomId || '1',
+     content: '',                    //语音消息没有文本内容
+     messageType: 'audio',           // ⭐消息类型为音频
+     fileUrl: uploadedUrl,           //音频文件 URL
+     audioDuration: duration         //录音时长（秒）
+   };
+  
+   sendMessage(messageData);
+  
+   // 关闭录音状态
+   isRecording.value = false;
+  
+   // 滚动到底部
+   nextTick(() => {
+     scrollToBottom();
+   });
+  
+   ElMessage.success('语音已发送');
+  } catch (error) {
+   console.error('语音发送失败:', error);
+   ElMessage.error('语音发送失败');
+   isRecording.value = false;
+  }
+  };
+
+    /**
+    - 取消录音（用户点击取消按钮）
+    */
+    const handleRecordingCancel = () => {
+    console.log('取消录音');
+    isRecording.value = false;
+    // VoiceRecorder 组件会自动清理资源
+    };
+      
+      /**
+    - 录音出错（权限拒绝、设备占用等）
+    */
+    const handleRecordingError = (errorMessage) => {
+    console.error('录音错误:', errorMessage);
+    ElMessage.error(errorMessage);
+    isRecording.value = false;
+    };
+
 </script>
+
+
 
 <style scoped>
 /* Custom scrollbar for sidebar */
@@ -797,221 +1069,6 @@ const handleOpenFile = ({ message, file }) => {
   opacity: 0.15; /* 降低透明度，让背景更柔和 */
   z-index: 0;
   pointer-events: none;
-}
-
-/* Override vue-advanced-chat styles */
-:deep(.vac-card-window) {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-
-:deep(.vac-rooms-container) {
-  display: none !important;
-}
-
-:deep(.vac-room-header) {
-  display: none !important;
-}
-
-/* 输入区域容器 */
-:deep(.vac-room-footer) {
-  background: rgba(30, 41, 59, 0.9) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-  padding: 1rem 1.5rem !important; /* 16px 24px */
-}
-
-:deep(.vac-textarea) {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-radius: 0.5rem !important; /* 8px */
-  padding: 0.75rem 1rem !important; /* 12px 16px */
-  font-size: 0.9375rem !important; /* 15px */
-  line-height: 1.5 !important;
-  transition: all 0.2s ease !important;
-}
-
-/* 聚焦时的效果 */
-:deep(.vac-textarea:focus) {
-  outline: none !important;
-  border-color: rgba(6, 182, 212, 0.5) !important; /* cyan-500 */
-  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1) !important;
-  background: rgba(255, 255, 255, 0.15) !important;
-}
-
-/* 聚焦时的效果 */
-:deep(.vac-textarea:focus) {
-  outline: none !important;
-  border-color: rgba(6, 182, 212, 0.5) !important; /* cyan-500 */
-  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1) !important;
-  background: rgba(255, 255, 255, 0.15) !important;
-}
-
-/* Placeholder 样式 */
-:deep(.vac-textarea::placeholder) {
-  color: rgba(255, 255, 255, 0.5) !important;
-}
-
-:deep(.vac-icon-textarea) {
-  color: rgba(255, 255, 255, 0.7) !important;
-}
-
-:deep(.vac-icon-textarea:hover) {
-  color: white !important;
-  background: rgba(255, 255, 255, 0.1) !important;
-}
-
-:deep(.vac-svg-button) {
-  color: rgba(255, 255, 255, 0.7) !important;
-}
-
-:deep(.vac-svg-button:hover) {
-  background: rgba(255, 255, 255, 0.1) !important;
-}
-
-/* Message bubbles with transparency */
-/* 接收方消息气泡 - 白色半透明 + 玻璃效果 */
-:deep(.vac-message-box) {
-  background: rgba(255, 255, 255, 0.9) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border-radius: 1rem !important; /* 16px */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-  padding: 0.75rem 1.25rem !important; /* 12px 20px */
-}
-
-/* 发送方消息气泡 - 青色半透明 + 玻璃效果 */
-:deep(.vac-message-current .vac-message-box) {
-  background: rgba(34, 211, 238, 0.8) !important; /* cyan-400 with 80% opacity */      
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  color: white !important;
-  box-shadow: 0 4px 16px rgba(34, 211, 238, 0.2) !important;
-}
-
-/* 消息气泡圆角优化 - 添加小缺角效果 */
-:deep(.vac-message-current .vac-message-box) {
-  border-bottom-right-radius: 0.25rem !important; /* 4px - 右下角小圆角 */
-}
-
-:deep(.vac-message-box:not(.vac-message-current)) {
-  border-bottom-left-radius: 0.25rem !important; /* 4px - 左下角小圆角 */
-}
-
-/* 消息文字 */
-:deep(.vac-text-message) {
-  color: inherit !important;
-  line-height: 1.5 !important;
-  word-wrap: break-word !important;
-}
-
-/* Send button styling */
-:deep(.vac-icon-send) {
-  background: linear-gradient(to right,
-    oklch(0.715 0.143 215.221), /* cyan-500 */
-    oklch(0.704 0.14 182.503)   /* teal-500 */
-  ) !important;
-  color: white !important;
-  border-radius: 9999px !important;
-  padding: 0.75rem !important; /* 12px */
-  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3) !important;
-  transition: all 0.2s ease !important;
-  border: none !important;
-}
-
-:deep(.vac-icon-send:hover) {
-  background: linear-gradient(to right,
-    oklch(0.609 0.126 221.723), /* cyan-600 */
-    oklch(0.6 0.118 184.704)    /* teal-600 */
-  ) !important;
-  box-shadow: 0 6px 16px rgba(6, 182, 212, 0.4) !important;
-  transform: scale(1.05);
-}
-
-:deep(.vac-icon-send:active) {
-  transform: scale(0.95);
-}
-
-/* 确保消息区域在背景之上 */
-:deep(.vac-messages-container) {
-  position: relative !important;
-  z-index: 1 !important;
-  background: transparent !important;
-}
-
-:deep(.vac-container-scroll) {
-  background: transparent !important;
-}
-
-/* Username styling */
-:deep(.vac-username) {
-  color: #1f2937 !important;
-  font-weight: 500 !important;
-}
-
-/* Timestamp styling */
-:deep(.vac-text-timestamp) {
-  font-size: 0.6875rem !important; /* 11px */
-  opacity: 0.7 !important;
-  margin-top: 0.25rem !important;
-}
-
-:deep(.vac-message-current .vac-text-timestamp) {
-  color: rgba(255, 255, 255, 0.7) !important;
-}
-
-/* File upload styling */
-:deep(.vac-image-container),
-:deep(.vac-file-container) {
-  border-radius: 12px !important;
-  overflow: hidden !important;
-}
-
-/* Emoji picker styling */
-:deep(.vac-emojis-container) {
-  background: rgba(30, 41, 59, 0.95) !important;
-  backdrop-filter: blur(10px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 8px !important;
-}
-
-:deep(.vac-emoji-element) {
-  transition: transform 0.2s !important;
-}
-
-:deep(.vac-emoji-element:hover) {
-  transform: scale(1.2) !important;
-  background: rgba(255, 255, 255, 0.1) !important;
-}
-
-
-
-/* Hide default vue-advanced-chat action buttons */
-:deep(.vac-icon-emoji),
-:deep(.vac-icon-emoji-reaction),
-:deep(.vac-image-file),
-:deep(.vac-icon-audio) {
-  display: none !important;
-}
-
-/* Keep only textarea and send button visible */
-:deep(.vac-box-footer) {
-  display: flex !important;
-  align-items: center !important;
-  gap: 0.75rem !important; /* 12px */
-  max-width: 64rem !important; /* 1024px */
-  margin: 0 auto !important;
-}
-
-/* 隐藏 vue-advanced-chat 默认的工具按钮 */
-:deep(.vac-icon-emoji),
-:deep(.vac-icon-emoji-reaction),
-:deep(.vac-image-file),
-:deep(.vac-icon-audio) {
-  display: none !important;
 }
 
 /* Custom toolbar buttons container */
@@ -1073,19 +1130,6 @@ const handleOpenFile = ({ message, file }) => {
   border-color: rgba(6, 182, 212, 0.6) !important;
 }
 
-/* 确保自定义工具栏显示 */
-:deep(.vac-room-footer) {
-  display: flex !important;
-  align-items: center !important;
-  flex-wrap: nowrap !important;
-}
-
-:deep(.vac-box-footer) {
-  width: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 0 !important;
-}
 
 /* Emoji picker popup */
 .emoji-picker-popup {
