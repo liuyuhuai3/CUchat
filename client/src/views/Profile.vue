@@ -700,4 +700,16 @@ const handleSignOut = async () => {
   .profile-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: rgba(255, 255, 255, 0.7);
   }
+
+  /* 隐藏 number 输入框的原生箭头 (Chrome, Safari, Edge) */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* 隐藏 number 输入框的原生箭头 (Firefox) */
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
   </style>

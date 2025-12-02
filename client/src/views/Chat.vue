@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+  <div class="relative h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
     <!-- 连接状态指示器 -->
     <div v-if="!isConnected" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-90 max-w-md">
       <el-alert
@@ -14,9 +14,9 @@
     </div>
 
     <!-- Main Container -->
-    <div class="h-screen flex">
+    <div class="h-full flex">
       <!-- Sidebar - Online Users List -->
-      <div class="w-80 bg-slate-800/50 backdrop-blur-sm border-r border-white/10 flex flex-col">
+      <div class="w-80 h-full bg-slate-800/50 backdrop-blur-sm border-r border-white/10 flex flex-col">
         <!-- Sidebar Header -->
         <div class="p-4 border-b border-white/10">
           <div class="flex items-center justify-between mb-4">
@@ -209,7 +209,7 @@
 <script setup>
 import GiphyPicker from '@/components/GiphyPicker.vue'; // 导入 GiphyPicker
 // import axios from 'axios';
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { User, ArrowDown, SwitchButton } from '@element-plus/icons-vue';
@@ -469,13 +469,29 @@ onUnmounted(() => {
 // ============================================
 // 处理 vue-advanced-chat 事件
 // ============================================
-watch(() => chatStore.messages, (newMessages) => {
+
+// 自动滚动到底部的函数
+const scrollToBottom = () => {
+  nextTick(() => {
+    const container = document.querySelector('.vac-container-scroll');
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  });
+};
+
+watch(() => chatStore.messages, (newMessages, oldMessages) => {
   if (newMessages.length > 0) {
     const lastMsg = newMessages[newMessages.length - 1];
     console.log('  最新消息:', lastMsg);
     console.log('  消息的 senderId:', lastMsg.senderId, '类型:', typeof lastMsg.senderId);
     console.log('  当前用户 ID:', userStore.user?.id, '类型:', typeof userStore.user?.id);
     console.log('  是否相等?', lastMsg.senderId === userStore.user?.id?.toString());
+
+    // 当有新消息时，自动滚动到底部
+    if (oldMessages && newMessages.length > oldMessages.length) {
+      scrollToBottom();
+    }
   }
 }, { deep: true });
 /**
@@ -632,6 +648,9 @@ const handleSendMessage = async (eventData) => {
     // 通过 WebSocket 发送
     sendMessage(messageData);
 
+    // 发送消息后自动滚动到底部
+    scrollToBottom();
+
   } catch (error) {
     console.error('发送消息失败:', error);
     ElMessage.error('发送消息失败');
@@ -650,6 +669,9 @@ const handleSendMessage = async (eventData) => {
     };  // ← 这里需要分号
 
     sendMessage(messageData);  // ← 添加这行：实际发送消息
+
+    // 发送贴纸后自动滚动到底部
+    scrollToBottom();
 
   } catch (error) {  // ← catch 前需要 } 闭合 try 块
     console.error('发送表情包失败:', error);
@@ -783,6 +805,7 @@ const handleOpenFile = ({ message, file }) => {
 /* Chat background with image */
 .chat-background {
   position: relative;
+  overflow: hidden;
 }
 
 .chat-background::before {
@@ -804,6 +827,9 @@ const handleOpenFile = ({ message, file }) => {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 :deep(.vac-rooms-container) {
@@ -940,11 +966,32 @@ const handleOpenFile = ({ message, file }) => {
   position: relative !important;
   z-index: 1 !important;
   background: transparent !important;
+  flex: 1 !important;
 }
 
 :deep(.vac-container-scroll) {
   background: transparent !important;
+  overflow-y: auto !important;
+  height: 100% !important;
 }
+
+/* 聊天区域滚动条样式 (可加可不加) */
+:deep(.vac-container-scroll)::-webkit-scrollbar {
+  width: 8px;
+}
+
+:deep(.vac-container-scroll)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:deep(.vac-container-scroll)::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+:deep(.vac-container-scroll)::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+} 
 
 /* Username styling */
 :deep(.vac-username) {
